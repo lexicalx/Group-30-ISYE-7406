@@ -1,0 +1,118 @@
+---
+title: 'ISyE7406x - Homework #4'
+author: "MSS0208"
+date: "01/03/2022"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo=FALSE}
+
+library('ggplot2')
+library('ggthemes') 
+library('scales')
+library('dplyr') 
+library('mice')
+library('randomForest') 
+library('data.table')
+library('gridExtra')
+library('corrplot') 
+library('GGally')
+library('e1071')
+
+train <-read.csv('C:/Salman/Training/OMSA/Current Courses/GTx - ISYE7406x - Data Mining & Statistical Learning/Project/data/train.csv', stringsAsFactors = F)
+test  <-read.csv('C:/Salman/Training/OMSA/Current Courses/GTx - ISYE7406x - Data Mining & Statistical Learning/Project/data/test.csv', stringsAsFactors = F)
+
+#Count the number of columns that consists of text data
+sum(sapply(train[,1:81], typeof) == "character")
+
+#Count the number of columns that consists of numerical data
+sum(sapply(train[,1:81], typeof) == "integer")
+
+# The percentage of data missing in train
+sum(is.na(train)) / (nrow(train) *ncol(train))
+
+# The percentage of data missing in test
+sum(is.na(test)) / (nrow(test) *ncol(test))
+
+# Check for duplicated rows
+cat("The number of duplicated rows are", nrow(train) - nrow(unique(train)))
+
+test$SalePrice<-rep(NA,1459)
+house<-bind_rows(train,test)
+
+#data visualization
+cat_var <- names(train)[which(sapply(train, is.character))]
+cat_car <- c(cat_var, 'BedroomAbvGr', 'HalfBath', ' KitchenAbvGr','BsmtFullBath', 'BsmtHalfBath', 'MSSubClass')
+numeric_var <- names(train)[which(sapply(train, is.numeric))]
+
+
+## Creating one training dataset with categorical variable and one with numeric variable. We will use this for data visualization.
+
+train1_cat<-train[cat_var]
+train1_num<-train[numeric_var]
+
+## Bar plot/Density plot function
+
+## Bar plot function
+
+plotHist <- function(data_in, i) 
+{
+  data <- data.frame(x=data_in[[i]])
+  p <- ggplot(data=data, aes(x=factor(x))) + stat_count() + xlab(colnames(data_in)[i]) + theme_light() + 
+    theme(axis.text.x = element_text(angle = 90, hjust =1))
+  return (p)
+}
+
+## Density plot function
+
+plotDen <- function(data_in, i){
+  data <- data.frame(x=data_in[[i]], SalePrice = data_in$SalePrice)
+  p <- ggplot(data= data) + geom_line(aes(x = x), stat = 'density', size = 1,alpha = 1.0) +
+    xlab(paste0((colnames(data_in)[i]), '\n', 'Skewness: ',round(skewness(data_in[[i]], na.rm = TRUE), 2))) + theme_light() 
+  return(p)
+  
+}
+
+## Function to call both Bar plot and Density plot function
+
+doPlots <- function(data_in, fun, ii, ncol=3) 
+{
+  pp <- list()
+  for (i in ii) {
+    p <- fun(data_in=data_in, i=i)
+    pp <- c(pp, list(p))
+  }
+  do.call("grid.arrange", c(pp, ncol=ncol))
+}
+
+
+## Barplots for the categorical features
+
+doPlots(train1_cat, fun = plotHist, ii = 1:4, ncol = 2)
+
+
+#boxplots
+ggplot(train, aes(x = Neighborhood, y = SalePrice)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept=80), 
+             colour='red', linetype='dashed', lwd=2) +
+  scale_y_continuous(labels=dollar_format()) +
+  theme_few() + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Sale Price range by Neighborhood")
+
+
+doPlots(train1_num, fun = plotDen, ii = c(7,3,13,17,5,6), ncol = 2)
+
+#correlation plot
+correlations <- cor(na.omit(train1_num[,-1]))
+row_indic <- apply(correlations, 1, function(x) sum(x > 0.3 | x < -0.3) > 1)
+correlations<- correlations[row_indic ,row_indic ]
+corrplot(correlations, method="square")
+
+```
+
+
